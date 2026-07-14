@@ -1,0 +1,25 @@
+# PulseGuard Agent Yapılandırma Dosyası
+
+agent:
+  host_id: "web-server-03"  # Bu ajanın/sunucunun kimliği
+  interval_seconds: 15      # Metriklerin kaç saniyede bir kontrol edileceği
+
+collector:
+  url: "http://localhost:8080/api/events" # Verilerin gönderileceği merkez adres
+
+checks:
+  cpu:
+    enabled: true           # Bu kontrol açık mı kapalı mı?
+    threshold_warning: 80.0 # %80'i geçerse WARNING olayı üret
+    threshold_error: 95.0   # %95'i geçerse ERROR olayı üret
+
+  ram:
+    enabled: true
+    threshold_warning: 85.0
+    threshold_error: 98.0
+
+  disk:
+    enabled: true
+    path: "/"               # İzlenecek disk yolu (Windows için "C:\" olabilir)
+    threshold_warning: 85.0
+    threshold_error: 92.0
