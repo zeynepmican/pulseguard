@@ -1,0 +1,27 @@
+# Go derlenmiş dosyaları
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/agent/agent
+/collector/collector
+/pulsectl/pulsectl
+
+# Node.js (Dashboard için)
+node_modules/
+dist/
+build/
+.env
+
+# Veritabanı
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# İşletim sistemi dosyaları
+.DS_Store
+Thumbs.db
