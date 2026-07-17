@@ -15,6 +15,7 @@ type Config struct {
 type AgentConfig struct {
 	HostID          string `yaml:"host_id"`
 	IntervalSeconds int    `yaml:"interval_seconds"`
+	SecretKey       string `yaml:"secret_key"`
 }
 
 type CollectorConfig struct {

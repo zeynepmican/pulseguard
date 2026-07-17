@@ -1,17 +1,18 @@
 # PulseGuard Agent Yapılandırma Dosyası
 
 agent:
-  host_id: "web-server-03"  # Bu ajanın/sunucunun kimliği
-  interval_seconds: 15      # Metriklerin kaç saniyede bir kontrol edileceği
+  host_id: "web-server-03"  # id of the host where the agent is running
+  interval_seconds: 5       # interval for running the checks and sending events to the collector
+  secret_key: "very-secret-sginature-key-707" # secret key for signing the payloads sent to the collector
 
 collector:
-  url: "http://localhost:8080/api/events" # Verilerin gönderileceği merkez adres
+  url: "http://localhost:8080/api/events" # URL of the collector where the agent will send the events
 
 checks:
   cpu:
-    enabled: true           # Bu kontrol açık mı kapalı mı?
-    threshold_warning: 80.0 # %80'i geçerse WARNING olayı üret
-    threshold_error: 95.0   # %95'i geçerse ERROR olayı üret
+    enabled: true           # is this check enabled or not
+    threshold_warning: 80.0 # create a WARNING event if CPU usage exceeds 80%
+    threshold_error: 95.0   # create an ERROR event if CPU usage exceeds 95%
 
   ram:
     enabled: true
