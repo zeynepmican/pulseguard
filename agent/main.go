@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
+
 	"fmt"
 	"log"
 	"time"
+
+	"bytes"
+	"net/http"
 )
 
 func main() {
@@ -48,7 +52,7 @@ func main() {
 	go eventShipper(eventQueue, localQueue)
 
 	// batchProcessor simulates sending events to the Collector in batches.
-	go batchProcessor(localQueue, config.Agent.SecretKey)
+	go batchProcessor(localQueue, config.Agent.SecretKey, config.Collector.URL)
 
 	// ticker is a channel that sends a signal at regular intervals.
 	// The main loop waits for the ticker to send a signal, and when it does, it runs the checks and sends any events to the eventQueue channel.
@@ -90,7 +94,13 @@ func eventShipper(queueChannel <-chan *Event, localQueue *LocalQueue) {
 }
 
 // batchProcessor simulates sending events to the Collector in batches.
-func batchProcessor(dbQueue *LocalQueue, secretKey string) {
+func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string) {
+	// Create an HTTP client with a timeout of 5 seconds. This client will be used to send the batch of events to the Collector.
+	// Timeout is important to avoid hanging the agent if the Collector is not responding.
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
 	for {
 		// Read a batch of events from the local queue
 		batchSize := 5
@@ -121,24 +131,51 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string) {
 		// Generate the HMAC-SHA256 signature for the batch using the secret key.
 		signature := GenerateSignature(batchJSON, secretKey)
 
-		fmt.Printf("İmza (X-Signature): %s\n", signature)
-		fmt.Printf("Payload Boyutu: %d byte\n", len(batchJSON))
+		// NEW HTTP REQUEST STARTING
 
-		// Simulation of sending the batch to the Collector.
-		// In a real implementation, you would send an HTTP POST request here.
-		time.Sleep(1 * time.Second)
-		fmt.Println("Toplayıcıdan '200 OK' yanıtı alındı!")
-
-		// If the events were successfully sent to the Collector, we delete them from the local queue.
-		err = dbQueue.DeleteBatch(eventIDs)
+		// New POST request to the Collector with the batch of events in the body.
+		req, err := http.NewRequest("POST", collectorUrl, bytes.NewBuffer(batchJSON))
 		if err != nil {
-			log.Printf("BATCH DELETE ERROR (Veriler hala kasada): %v\n", err)
-		} else {
-			fmt.Printf("Başarıyla gönderilen %d paket kasadan silindi.\n", len(events))
+			log.Printf("REQUEST OLUŞTURMA HATASI: %v\n", err)
+			time.Sleep(5 * time.Second)
+			continue
 		}
-		fmt.Println("--------------------------------------------------\n")
 
-		// Kamyon dinlensin
+		// Add the headers.
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Signature", signature)
+		// req.Header.Set("X-Agent-ID", events[0].HostID) // Ekstra bilgi
+
+		// Send the request and get the response
+		resp, err := client.Do(req)
+
+		// If there is an error, we log it and wait for 5 seconds before trying again.
+		// This could be a network error, timeout, etc.
+		if err != nil {
+			log.Printf("AĞ HATASI (Sunucuya ulaşılamadı): %v\n", err)
+			fmt.Println("Paketler kasada tutuluyor, sonra tekrar denenecek...")
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if resp.StatusCode == http.StatusOK { // 200 OK
+			// Delete the successfully sent events.
+			err = dbQueue.DeleteBatch(eventIDs)
+			if err != nil {
+				log.Printf("BATCH DELETE ERROR (Veriler hala kasada): %v\n", err)
+			} else {
+				fmt.Printf("Başarıyla gönderilen %d paket kasadan silindi.\n", len(events))
+			}
+		} else {
+			// 500 Server Error, 401 Unauthorized
+			log.Printf("SUNUCU HATASI DÖNDÜ (Kod: %d). Veriler silinmedi, tekrar denenecek.\n", resp.StatusCode)
+		}
+
+		// Close the response body to free up resources. This is important to avoid memory leaks.
+		resp.Body.Close()
+
+		fmt.Println("--------------------------------------------------")
+
+		// Rest for 5 sec before sending the next batch.
 		time.Sleep(5 * time.Second)
 	}
 }
