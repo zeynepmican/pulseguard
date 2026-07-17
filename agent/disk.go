@@ -21,7 +21,7 @@ func NewDiskChecker(cfg DiskCheckConfig, hostID string) *DiskChecker {
 }
 
 func (d *DiskChecker) Execute() (*Event, error) {
-	// Hangi diski okuyacağını config dosyasındaki 'Path' değerinden alıyor ("/" veya "C:\" gibi)
+	// Gets the disk usage statistics for the specified path using the gopsutil library. If there's an error, it returns nil and the error.
 	usage, err := disk.Usage(d.config.Path)
 	if err != nil {
 		return nil, fmt.Errorf("disk değeri okunamadı (%s): %v", d.config.Path, err)

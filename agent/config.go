@@ -28,17 +28,16 @@ type ChecksConfig struct {
 	Disk DiskCheckConfig `yaml:"disk"`
 }
 
-// for CPU and RAM checks
-// ikisi de aynı kontrol yapılandırmasına sahip olduğundan BaseCheckConfig adı altında ikisini de tutuyoruz.
+// both CPU and RAM checks have the same configuration structure, so we define a base configuration struct for them.
 type BaseCheckConfig struct {
 	Enabled          bool    `yaml:"enabled"`
 	ThresholdWarning float64 `yaml:"threshold_warning"`
 	ThresholdError   float64 `yaml:"threshold_error"`
 }
 
-// disk CPU ve RAM'in sahip olduğu kontrollere ek olarak path alanına sahip olduğundan ayrı bir yapılandırma olarak tanımlıyoruz.
+// disk check has a specific configuration structure, so we define a separate struct for it.
 type DiskCheckConfig struct {
-	BaseCheckConfig `yaml:",inline"` // inline etiketi ile BaseCheckConfig alanını gömülü olarak ekliyoruz.
+	BaseCheckConfig `yaml:",inline"` // with inline, the fields of BaseCheckConfig are embedded directly into DiskCheckConfig.
 	Path            string           `yaml:"path"`
 }
 
@@ -51,9 +50,9 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	var config Config
 
-	err = yaml.Unmarshal(fileContent, &config) // configin adresini yolluyoruz ki configi doldurabilsin, kopyasını yaratmasın.
+	err = yaml.Unmarshal(fileContent, &config) // we send the address of the config variable to Unmarshal so that it can populate it with the data from the YAML file.
 	if err != nil {
-		// eğer dosya bozuk yaml formatında ise, unmarshal işlemi başarısız olur ve hata döneriz.
+		// if the file content cannot be unmarshaled into the Config struct, return the error
 		return nil, err
 	}
 	return &config, nil

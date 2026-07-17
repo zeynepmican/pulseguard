@@ -38,7 +38,7 @@ func (c *CPUChecker) Execute() (*Event, error) {
 		level = "WARNING"
 		message = fmt.Sprintf("Uyarı: CPU kullanımı %%%.2f seviyesine ulaştı.", cpuUsage)
 	} else {
-		// herhangi bir sınırı geçmiyorsa Event oluşturulmaz
+		// if the oercentage is below the warning threshold, we can return nil to indicate no event
 		return nil, nil
 	}
 

@@ -3,17 +3,17 @@ package main
 import "time"
 
 type Event struct {
-	EventID   string    `json:"event_id"`     // Olayın benzersiz kimliği (Idempotency için)
-	Timestamp time.Time `json:"timestamp"`    // Olayın gerçekleştiği zaman
-	CheckType string    `json:"check_type"`   // Hangi metrikte sorun oldu? (cpu, ram, disk)
-	Level     string    `json:"level"`        // Seviye: INFO, WARNING, ERROR
-	Message   string    `json:"message"`      // İnsan okuyabilir açıklama
-	Value     float64   `json:"metric_value"` // O anki sorunlu metrik değeri
+	EventID   string    `json:"event_id"`     // Events unique identifier
+	Timestamp time.Time `json:"timestamp"`    // Timestamp of the event
+	CheckType string    `json:"check_type"`   // Which metric had an issue? (cpu, ram, disk)
+	Level     string    `json:"level"`        // Level: INFO, WARNING, ERROR
+	Message   string    `json:"message"`      // Human-readable description
+	Value     float64   `json:"metric_value"` // Current problematic metric value
 }
 
-// Checker, sisteme eklenecek her yeni kontrol modülünün uyması gereken sözleşmedir.
+// Checker is an interface that defines the behavior of a health check.
+// Each specific check (like CPU, RAM, Disk) will implement this interface.
 type Checker interface {
-	// Execute, kontrolü çalıştırır. Eğer eşik aşılmışsa bir Event döndürür.
-	// Eşik aşılmamışsa Event 'nil' (boş) döner.
+	// If the threshold is exceeded, Execute returns an Event. If not, it returns nil.
 	Execute() (*Event, error)
 }
