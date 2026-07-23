@@ -8,8 +8,9 @@ import (
 
 func main() {
 	loadConfig()
+	initDB()
 
-	http.HandleFunc("/api/events", handleEvents)
+	http.HandleFunc("/api/events", eventsHandler)
 
 	portStr := fmt.Sprintf(":%d", appConfig.Server.Port)
 	fmt.Printf("Collector server is listening on port %s...\n", portStr)
