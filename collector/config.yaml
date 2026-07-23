@@ -1,0 +1,5 @@
+server:
+  port: 8081
+
+security:
+  secret_key: "very-secret-signature-key-707"
