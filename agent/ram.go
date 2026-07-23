@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
@@ -23,7 +24,7 @@ func (r *RAMChecker) Execute() (*Event, error) {
 
 	vMem, err := mem.VirtualMemory()
 	if err != nil {
-		return nil, fmt.Errorf("ram değeri okunamadı: %v", err)
+		return nil, fmt.Errorf("Failed to read RAM usage: %v", err)
 	}
 
 	ramUsage := vMem.UsedPercent
@@ -33,16 +34,16 @@ func (r *RAMChecker) Execute() (*Event, error) {
 
 	if ramUsage >= r.config.ThresholdError {
 		level = "ERROR"
-		message = fmt.Sprintf("Kritik: RAM kullanımı %%%.2f seviyesine ulaştı!", ramUsage)
+		message = fmt.Sprintf("Critical: RAM usage reached %.2f%%!", ramUsage)
 	} else if ramUsage >= r.config.ThresholdWarning {
 		level = "WARNING"
-		message = fmt.Sprintf("Uyarı: RAM kullanımı %%%.2f seviyesine ulaştı.", ramUsage)
+		message = fmt.Sprintf("Warning: RAM usage reached %.2f%%!", ramUsage)
 	} else {
 		return nil, nil
 	}
 
 	event := &Event{
-		EventID:   fmt.Sprintf("ram-%d", time.Now().UnixNano()),
+		EventID:   uuid.New().String(),
 		Timestamp: time.Now(),
 		CheckType: "ram",
 		Level:     level,

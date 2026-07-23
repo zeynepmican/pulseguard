@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/disk"
 )
 
@@ -24,7 +25,7 @@ func (d *DiskChecker) Execute() (*Event, error) {
 	// Gets the disk usage statistics for the specified path using the gopsutil library. If there's an error, it returns nil and the error.
 	usage, err := disk.Usage(d.config.Path)
 	if err != nil {
-		return nil, fmt.Errorf("disk değeri okunamadı (%s): %v", d.config.Path, err)
+		return nil, fmt.Errorf("Failed to read disk usage (%s): %v", d.config.Path, err)
 	}
 
 	diskUsage := usage.UsedPercent
@@ -34,16 +35,16 @@ func (d *DiskChecker) Execute() (*Event, error) {
 
 	if diskUsage >= d.config.ThresholdError {
 		level = "ERROR"
-		message = fmt.Sprintf("Kritik: Disk (%s) kullanımı %%%.2f seviyesine ulaştı!", d.config.Path, diskUsage)
+		message = fmt.Sprintf("Critical: Disk (%s) usage reached %.2f%%!", d.config.Path, diskUsage)
 	} else if diskUsage >= d.config.ThresholdWarning {
 		level = "WARNING"
-		message = fmt.Sprintf("Uyarı: Disk (%s) kullanımı %%%.2f seviyesine ulaştı.", d.config.Path, diskUsage)
+		message = fmt.Sprintf("Warning: Disk (%s) usage reached %.2f%%!", d.config.Path, diskUsage)
 	} else {
 		return nil, nil
 	}
 
 	event := &Event{
-		EventID:   fmt.Sprintf("disk-%d", time.Now().UnixNano()),
+		EventID:   uuid.New().String(),
 		Timestamp: time.Now(),
 		CheckType: "disk",
 		Level:     level,
