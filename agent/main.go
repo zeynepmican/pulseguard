@@ -32,13 +32,13 @@ func main() {
 	// Create a list for active checkers based on the configuration. If a check is enabled, we create a new checker and add it to the list.
 	var activeCheckers []Checker
 	if config.Checks.CPU.Enabled {
-		activeCheckers = append(activeCheckers, NewCPUChecker(config.Checks.CPU, config.Agent.HostID))
+		activeCheckers = append(activeCheckers, NewCPUChecker(config.Checks.CPU))
 	}
 	if config.Checks.RAM.Enabled {
-		activeCheckers = append(activeCheckers, NewRAMChecker(config.Checks.RAM, config.Agent.HostID))
+		activeCheckers = append(activeCheckers, NewRAMChecker(config.Checks.RAM))
 	}
 	if config.Checks.Disk.Enabled {
-		activeCheckers = append(activeCheckers, NewDiskChecker(config.Checks.Disk, config.Agent.HostID))
+		activeCheckers = append(activeCheckers, NewDiskChecker(config.Checks.Disk))
 	}
 	// no checker enabled, exit
 	if len(activeCheckers) == 0 {
@@ -52,7 +52,7 @@ func main() {
 	go eventShipper(eventQueue, localQueue)
 
 	// batchProcessor simulates sending events to the Collector in batches.
-	go batchProcessor(localQueue, config.Agent.SecretKey, config.Collector.URL)
+	go batchProcessor(localQueue, config.Agent.SecretKey, config.Collector.URL, config.Agent.HostID)
 
 	// ticker is a channel that sends a signal at regular intervals.
 	// The main loop waits for the ticker to send a signal, and when it does, it runs the checks and sends any events to the eventQueue channel.
@@ -94,7 +94,7 @@ func eventShipper(queueChannel <-chan *Event, localQueue *LocalQueue) {
 }
 
 // batchProcessor simulates sending events to the Collector in batches.
-func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string) {
+func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, agentId string) {
 	// Create an HTTP client with a timeout of 5 seconds. This client will be used to send the batch of events to the Collector.
 	// Timeout is important to avoid hanging the agent if the Collector is not responding.
 	client := &http.Client{
@@ -142,6 +142,7 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string) 
 		}
 
 		// Add the headers.
+		req.Header.Set("X-Agent-ID", agentId)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Signature", signature)
 		// req.Header.Set("X-Agent-ID", events[0].HostID) // Ekstra bilgi

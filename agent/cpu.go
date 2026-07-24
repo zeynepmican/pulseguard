@@ -10,14 +10,12 @@ import (
 
 type CPUChecker struct {
 	config BaseCheckConfig
-	hostID string
 }
 
 // constructor function for CPUChecker
-func NewCPUChecker(cfg BaseCheckConfig, hostID string) *CPUChecker {
+func NewCPUChecker(cfg BaseCheckConfig) *CPUChecker {
 	return &CPUChecker{
 		config: cfg,
-		hostID: hostID,
 	}
 }
 

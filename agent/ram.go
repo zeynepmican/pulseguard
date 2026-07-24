@@ -10,13 +10,11 @@ import (
 
 type RAMChecker struct {
 	config BaseCheckConfig
-	hostID string
 }
 
-func NewRAMChecker(cfg BaseCheckConfig, hostID string) *RAMChecker {
+func NewRAMChecker(cfg BaseCheckConfig) *RAMChecker {
 	return &RAMChecker{
 		config: cfg,
-		hostID: hostID,
 	}
 }
 

@@ -12,6 +12,8 @@ func main() {
 
 	http.HandleFunc("/api/events", eventsHandler)
 
+	http.HandleFunc("/api/hosts", handleGetHosts)
+
 	portStr := fmt.Sprintf(":%d", appConfig.Server.Port)
 	fmt.Printf("Collector server is listening on port %s...\n", portStr)
 

@@ -11,13 +11,11 @@ import (
 type DiskChecker struct {
 	// we use DiskCheckConfig
 	config DiskCheckConfig
-	hostID string
 }
 
-func NewDiskChecker(cfg DiskCheckConfig, hostID string) *DiskChecker {
+func NewDiskChecker(cfg DiskCheckConfig) *DiskChecker {
 	return &DiskChecker{
 		config: cfg,
-		hostID: hostID,
 	}
 }
 

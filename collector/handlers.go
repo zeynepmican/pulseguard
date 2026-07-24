@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm/clause"
 	"io"
 	"net/http"
 )
@@ -29,21 +30,37 @@ func eventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Filtered get function.
 func handleGetEvents(w http.ResponseWriter, r *http.Request) {
 	var events []Event
 
-	// Veritabanından en son eklenen 50 olayı tarihe göre tersten (en yeni en üstte) sıralayarak çek
-	result := DB.Order("timestamp desc").Limit(50).Find(&events)
+	// Temel GORM sorgumuzu başlatıyoruz (Henüz veritabanına gitmedik, sadece hazırlıyoruz)
+	query := DB.Model(&Event{})
+
+	// Filter: AgentID
+	if agentID := r.URL.Query().Get("agent_id"); agentID != "" {
+		query = query.Where("agent_id = ?", agentID)
+	}
+
+	// Filter Alarm Level
+	if level := r.URL.Query().Get("level"); level != "" {
+		query = query.Where("level = ?", level)
+	}
+
+	// Filter Check Type
+	if checkType := r.URL.Query().Get("check_type"); checkType != "" {
+		query = query.Where("check_type = ?", checkType)
+	}
+
+	// Use the query, get 50 events.
+	result := query.Order("timestamp desc").Limit(50).Find(&events)
 	if result.Error != nil {
 		http.Error(w, "Failed to retrieve events from database", http.StatusInternalServerError)
 		return
 	}
 
-	// Geri dönüş tipinin JSON olduğunu belirtiyoruz ki tarayıcılar güzel göstersin
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	// Veritabanından çektiğimiz diziyi JSON formatına çevirip ekrana (istemciye) basıyoruz
 	json.NewEncoder(w).Encode(events)
 }
 
@@ -76,16 +93,23 @@ func handlePostEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
+	// Adding AgentID information to the event
+	for i := range events {
+		events[i].AgentID = agentID
+	}
 
-	// GORM ile veritabanına kaydet
-	result := DB.Create(&events)
+	// If this ID exists in the database do nothing
+	result := DB.Clauses(clause.OnConflict{
+		DoNothing: true,
+	}).Create(&events)
+
 	if result.Error != nil {
 		fmt.Printf("DATABASE ERROR: %v\n", result.Error)
 		http.Error(w, "Failed to save events to database", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("\n✅ SECURE PAYLOAD SAVED TO DB | Agent: %s | Events: %d\n", agentID, len(events))
+	fmt.Printf("\nSECURE PAYLOAD SAVED TO DB | Agent: %s | Events: %d\n", agentID, len(events))
 	for _, event := range events {
 		icon := "ℹ️"
 		if event.Level == "WARNING" {
@@ -100,4 +124,27 @@ func handlePostEvents(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Payload saved securely"))
+}
+
+func handleGetHosts(w http.ResponseWriter, r *http.Request) {
+	// Sadece GET isteklerine izin ver
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var agents []string
+
+	// Sihirli GORM Sorgusu:
+	// "Event tablosuna bak, 'agent_id' sütunundaki benzersiz isimleri bul ve 'agents' dizisine doldur."
+	result := DB.Model(&Event{}).Distinct("agent_id").Pluck("agent_id", &agents)
+
+	if result.Error != nil {
+		http.Error(w, "Failed to retrieve hosts from database", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(agents)
 }
