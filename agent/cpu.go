@@ -29,17 +29,15 @@ func (c *CPUChecker) Execute() (*Event, error) {
 	cpuUsage := percentages[0]
 
 	var level string
-	var message string
 
+	level = "NORMAL"
 	if cpuUsage >= c.config.ThresholdError {
 		level = "ERROR"
-		message = fmt.Sprintf("Critical: CPU usage reached %.2f%%!", cpuUsage)
 	} else if cpuUsage >= c.config.ThresholdWarning {
 		level = "WARNING"
-		message = fmt.Sprintf("Warning: CPU usage reached %.2f%%!", cpuUsage)
+
 	} else {
-		// if the percentage is below the warning threshold, we can return nil to indicate no event
-		return nil, nil
+
 	}
 
 	event := &Event{
@@ -47,7 +45,6 @@ func (c *CPUChecker) Execute() (*Event, error) {
 		Timestamp: time.Now(),
 		CheckType: "cpu",
 		Level:     level,
-		Message:   message,
 		Value:     cpuUsage,
 	}
 

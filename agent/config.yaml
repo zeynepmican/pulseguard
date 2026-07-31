@@ -6,21 +6,21 @@ agent:
   secret_key: "very-secret-signature-key-707" # secret key for signing the payloads sent to the collector
 
 collector:
-  url: "http://localhost:8081/api/events" # URL of the collector where the agent will send the events
+  url: "http://localhost:8081" # URL of the collector where the agent will send the events
 
 checks:
   cpu:
     enabled: true           # is this check enabled or not
-    threshold_warning: 1.0 # create a WARNING event if CPU usage exceeds 80%
-    threshold_error: 95.0   # create an ERROR event if CPU usage exceeds 95%
+    threshold_warning: 20.0 # create a WARNING event if CPU usage exceeds 80%
+    threshold_error: 35.0   # create an ERROR event if CPU usage exceeds 95%
 
   ram:
     enabled: true
-    threshold_warning: 1.0
-    threshold_error: 98.0
+    threshold_warning: 80.0
+    threshold_error: 90.0
 
   disk:
     enabled: true
     path: "/"               # İzlenecek disk yolu (Windows için "C:\" olabilir)
-    threshold_warning: 1.0
-    threshold_error: 92.0
+    threshold_warning: 80.0
+    threshold_error: 90.0

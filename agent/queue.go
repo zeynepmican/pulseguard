@@ -106,24 +106,3 @@ func (q *LocalQueue) DeleteBatch(eventIDs []string) error {
 		return nil
 	})
 }
-
-// PrintAll, reads all events from the local queue and prints them to the console.
-// It is useful for debugging and testing purposes.
-func (q *LocalQueue) PrintAll() {
-	fmt.Println("\n---  READING ALL DATA ---")
-
-	q.db.View(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket([]byte("events"))
-
-		cursor := bucket.Cursor()
-		count := 0
-
-		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
-			fmt.Printf("Key: %s\nValue: %s\n\n", k, v)
-			count++
-		}
-
-		fmt.Printf("--- TOTAL %d RECORDS FOUND ---\n\n", count)
-		return nil
-	})
-}

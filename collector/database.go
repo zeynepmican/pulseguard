@@ -18,7 +18,7 @@ func initDB() {
 	}
 
 	// SİHİRLİ KISIM: Event struct'ına bakar ve SQL tablosunu otomatik oluşturur!
-	err = DB.AutoMigrate(&Event{})
+	err = DB.AutoMigrate(&Event{}, &AgentConfig{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}

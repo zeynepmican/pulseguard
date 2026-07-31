@@ -29,16 +29,13 @@ func (d *DiskChecker) Execute() (*Event, error) {
 	diskUsage := usage.UsedPercent
 
 	var level string
-	var message string
+
+	level = "NORMAL"
 
 	if diskUsage >= d.config.ThresholdError {
 		level = "ERROR"
-		message = fmt.Sprintf("Critical: Disk (%s) usage reached %.2f%%!", d.config.Path, diskUsage)
 	} else if diskUsage >= d.config.ThresholdWarning {
 		level = "WARNING"
-		message = fmt.Sprintf("Warning: Disk (%s) usage reached %.2f%%!", d.config.Path, diskUsage)
-	} else {
-		return nil, nil
 	}
 
 	event := &Event{
@@ -46,7 +43,6 @@ func (d *DiskChecker) Execute() (*Event, error) {
 		Timestamp: time.Now(),
 		CheckType: "disk",
 		Level:     level,
-		Message:   message,
 		Value:     diskUsage,
 	}
 

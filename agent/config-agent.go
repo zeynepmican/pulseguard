@@ -41,6 +41,16 @@ type DiskCheckConfig struct {
 	Path            string           `yaml:"path"`
 }
 
+type AgentConfigPayload struct {
+	AgentID  string  `json:"agent_id"`
+	CpuWarn  float64 `json:"cpu_warn"`
+	CpuErr   float64 `json:"cpu_err"`
+	RamWarn  float64 `json:"ram_warn"`
+	RamErr   float64 `json:"ram_err"`
+	DiskWarn float64 `json:"disk_warn"`
+	DiskErr  float64 `json:"disk_err"`
+}
+
 // public function to load the configuration from a YAML file
 func LoadConfig(path string) (*Config, error) {
 	fileContent, err := os.ReadFile(path)

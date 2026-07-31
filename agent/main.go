@@ -18,6 +18,9 @@ func main() {
 		log.Fatalf("Critical error while loading config: %v", err)
 	}
 
+	fmt.Println("Toplayıcıya eşik değerleri (Thresholds) bildiriliyor...")
+	sendInitialConfigToCollector(config.Collector.URL, config.Agent.HostID, *config)
+
 	// Open or create the local queue database
 	localQueue, err := NewLocalQueue("pulseguard_queue.db")
 	if err != nil {
@@ -25,9 +28,6 @@ func main() {
 	}
 
 	defer localQueue.db.Close() // defer: Release the database lock when the agent stops or crashes.
-
-	// for testing
-	// localQueue.PrintAll()
 
 	// Create a list for active checkers based on the configuration. If a check is enabled, we create a new checker and add it to the list.
 	var activeCheckers []Checker
@@ -94,12 +94,13 @@ func eventShipper(queueChannel <-chan *Event, localQueue *LocalQueue) {
 }
 
 // batchProcessor simulates sending events to the Collector in batches.
-func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, agentId string) {
+func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorBaseUrl string, agentId string) {
 	// Create an HTTP client with a timeout of 5 seconds. This client will be used to send the batch of events to the Collector.
 	// Timeout is important to avoid hanging the agent if the Collector is not responding.
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
+	eventURL := fmt.Sprintf("%s/api/events", collectorBaseUrl)
 
 	for {
 		// Read a batch of events from the local queue
@@ -113,12 +114,12 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 		}
 
 		// If there are events in the batch, we simulate sending them to the Collector.
-		fmt.Println("\n--------------------------------------------------")
-		fmt.Printf("Kargo Kamyonu Geldi! %d adet paket Toplayıcıya gönderiliyor...\n", len(events))
+		//fmt.Println("\n--------------------------------------------------")
+		//fmt.Printf("Kargo Kamyonu Geldi! %d adet paket Toplayıcıya gönderiliyor...\n", len(events))
 
 		var eventIDs []string
 		for _, ev := range events {
-			fmt.Printf("-> Giden: %s | %s\n", ev.EventID, ev.CheckType)
+			// fmt.Printf("-> Giden: %s | %s\n", ev.EventID, ev.CheckType)
 			eventIDs = append(eventIDs, ev.EventID) // We collect the EventIDs of the events we are sending so we can delete them from the local queue after a successful send.
 		}
 
@@ -132,9 +133,8 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 		signature := GenerateSignature(batchJSON, secretKey)
 
 		// NEW HTTP REQUEST STARTING
-
 		// New POST request to the Collector with the batch of events in the body.
-		req, err := http.NewRequest("POST", collectorUrl, bytes.NewBuffer(batchJSON))
+		req, err := http.NewRequest("POST", eventURL, bytes.NewBuffer(batchJSON))
 		if err != nil {
 			log.Printf("REQUEST OLUŞTURMA HATASI: %v\n", err)
 			time.Sleep(5 * time.Second)
@@ -154,7 +154,7 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 		// This could be a network error, timeout, etc.
 		if err != nil {
 			log.Printf("AĞ HATASI (Sunucuya ulaşılamadı): %v\n", err)
-			fmt.Println("Paketler kasada tutuluyor, sonra tekrar denenecek...")
+			// fmt.Println("Paketler kasada tutuluyor, sonra tekrar denenecek...")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -164,7 +164,7 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 			if err != nil {
 				log.Printf("BATCH DELETE ERROR (Veriler hala kasada): %v\n", err)
 			} else {
-				fmt.Printf("Başarıyla gönderilen %d paket kasadan silindi.\n", len(events))
+				//fmt.Printf("Başarıyla gönderilen %d paket kasadan silindi.\n", len(events))
 			}
 		} else {
 			// 500 Server Error, 401 Unauthorized
@@ -174,7 +174,7 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 		// Close the response body to free up resources. This is important to avoid memory leaks.
 		resp.Body.Close()
 
-		fmt.Println("--------------------------------------------------")
+		// fmt.Println("--------------------------------------------------")
 
 		// Rest for 5 sec before sending the next batch.
 		time.Sleep(5 * time.Second)
@@ -183,7 +183,7 @@ func batchProcessor(dbQueue *LocalQueue, secretKey string, collectorUrl string, 
 
 // runChecks function iterates over the list of checkers, executes each one, and sends any resulting events to the eventQueue channel.
 func runChecks(checkers []Checker, queue chan<- *Event) {
-	fmt.Printf("\n[%s] Checking systems...\n", time.Now().Format("15:04:05"))
+	//fmt.Printf("\n[%s] Checking systems...\n", time.Now().Format("15:04:05"))
 	for _, worker := range checkers {
 		event, err := worker.Execute()
 
@@ -194,5 +194,44 @@ func runChecks(checkers []Checker, queue chan<- *Event) {
 		if event != nil {
 			queue <- event
 		}
+	}
+}
+
+func sendInitialConfigToCollector(collectorURL string, agentID string, localConfig Config) {
+	payload := AgentConfigPayload{
+		AgentID:  agentID,
+		CpuWarn:  localConfig.Checks.CPU.ThresholdWarning,
+		CpuErr:   localConfig.Checks.CPU.ThresholdError,
+		RamWarn:  localConfig.Checks.RAM.ThresholdWarning,
+		RamErr:   localConfig.Checks.RAM.ThresholdError,
+		DiskWarn: localConfig.Checks.Disk.ThresholdWarning,
+		DiskErr:  localConfig.Checks.Disk.ThresholdError,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Config JSON'a dönüştürülemedi:", err)
+		return
+	}
+
+	// Collector tarafındaki /api/configs/{agent_id} adresine POST atıyoruz
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/configs/%s", collectorURL, agentID), bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Eğer Collector tarafında Config POST isteği de X-Signature istiyorsa buraya eklemelisin.
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Config Collector'a gönderilemedi:", err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		fmt.Println("Agent Config başarıyla Collector'a kaydedildi (Handshake başarılı!).")
+	} else {
+		fmt.Println("Collector Config'i reddetti, HTTP Kodu:", resp.StatusCode)
 	}
 }

@@ -7,7 +7,6 @@ type Event struct {
 	Timestamp time.Time `json:"timestamp"`    // Timestamp of the event
 	CheckType string    `json:"check_type"`   // Which metric had an issue? (cpu, ram, disk)
 	Level     string    `json:"level"`        // Level: INFO, WARNING, ERROR
-	Message   string    `json:"message"`      // Human-readable description
 	Value     float64   `json:"metric_value"` // Current problematic metric value
 }
 

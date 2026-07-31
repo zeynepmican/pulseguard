@@ -28,16 +28,12 @@ func (r *RAMChecker) Execute() (*Event, error) {
 	ramUsage := vMem.UsedPercent
 
 	var level string
-	var message string
+	level = "NORMAL"
 
 	if ramUsage >= r.config.ThresholdError {
 		level = "ERROR"
-		message = fmt.Sprintf("Critical: RAM usage reached %.2f%%!", ramUsage)
 	} else if ramUsage >= r.config.ThresholdWarning {
 		level = "WARNING"
-		message = fmt.Sprintf("Warning: RAM usage reached %.2f%%!", ramUsage)
-	} else {
-		return nil, nil
 	}
 
 	event := &Event{
@@ -45,7 +41,6 @@ func (r *RAMChecker) Execute() (*Event, error) {
 		Timestamp: time.Now(),
 		CheckType: "ram",
 		Level:     level,
-		Message:   message,
 		Value:     ramUsage,
 	}
 
