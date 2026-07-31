@@ -61,7 +61,140 @@ const MetricCard = ({ title, unit, latest }) => {
   );
 };
 
-const MetricChart = ({ title, type, data, timeRange }) => {
+// 1. TEK METRİK İÇİN CSV İNDİRME (Grafik başlığındaki buton)
+const downloadCSV = (hostId, type, data, timeRange, config) => {
+  if (!data || data.length === 0) {
+    alert("İndirilecek veri bulunamadı!");
+    return;
+  }
+
+  const warnThresh = config ? config[`${type}_warn`] : "N/A";
+  const errThresh = config ? config[`${type}_err`] : "N/A";
+  const timeLabel = timeRange >= 60 ? `Son ${timeRange / 60} Saat` : `Son ${timeRange} Dakika`;
+  const exportDate = new Date().toLocaleString("tr-TR");
+
+  const metadataBlock = [
+    `"========================================="`,
+    `"PULSEGUARD METRİK DENETİM RAPORU"`,
+    `"========================================="`,
+    `"Host ID:","${hostId}"`,
+    `"Check Type:","${type.toUpperCase()}"`,
+    `"Aktif Uyarı Eşiği (Warning Limit):","%${warnThresh}"`,
+    `"Aktif Kritik Eşiği (Error Limit):","%${errThresh}"`,
+    `"Raporlama Aralığı:","${timeLabel}"`,
+    `"Rapor Oluşturma Tarihi:","${exportDate}"`,
+    `"========================================="`,
+    "" 
+  ];
+
+  const headers = [
+    "Tarih / Saat",
+    "Ölçüm Değeri (%)",
+    "Durum Seviyesi"
+  ];
+
+  const rows = data.map(item => {
+    const readableDate = new Date(item.timestamp).toLocaleString("tr-TR");
+    return [
+      `"${readableDate}"`,
+      `"${item.value.toFixed(2)}"`,
+      `"${item.level}"`
+    ];
+  });
+
+  const csvContent = "\uFEFF" + [
+    ...metadataBlock,
+    headers.join(","),
+    ...rows.map(e => e.join(","))
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  const fileTimeLabel = timeRange >= 60 ? `${timeRange / 60}Saat` : `${timeRange}Dk`;
+  link.setAttribute("href", url);
+  link.setAttribute("download", `PulseGuard_${hostId}_${type.toUpperCase()}_${fileTimeLabel}.csv`);
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+// 2. 🌟 TOPLU RAPOR İÇİN CSV İNDİRME (Üst bardaki buton)
+const downloadAllCSV = (hostId, allEvents, timeRange, config) => {
+  if (!allEvents || allEvents.length === 0) {
+    alert("İndirilecek veri bulunamadı!");
+    return;
+  }
+
+  const latestTime = new Date(allEvents[0].timestamp).getTime();
+  const cutoffTime = latestTime - (timeRange * 60 * 1000);
+  const filteredEvents = allEvents.filter(e => new Date(e.timestamp).getTime() >= cutoffTime);
+
+  if (filteredEvents.length === 0) {
+    alert("Seçilen zaman aralığında indirilecek veri bulunamadı!");
+    return;
+  }
+
+  const timeLabel = timeRange >= 60 ? `Son ${timeRange / 60} Saat` : `Son ${timeRange} Dakika`;
+  const exportDate = new Date().toLocaleString("tr-TR");
+
+  const getThresh = (type, level) => config && config[`${type}_${level}`] ? `%${config[`${type}_${level}`]}` : "N/A";
+
+  const metadataBlock = [
+    `"========================================="`,
+    `"PULSEGUARD - TOPLU SİSTEM DENETİM RAPORU"`,
+    `"========================================="`,
+    `"Host ID:","${hostId}"`,
+    `"Raporlama Aralığı:","${timeLabel}"`,
+    `"Rapor Oluşturma Tarihi:","${exportDate}"`,
+    `"-----------------------------------------"`,
+    `"AKTİF EŞİK LİMİTLERİ (LAST THRESHOLDS)"`,
+    `"CPU Uyarı / Kritik Eşiği:","Warn: ${getThresh('cpu', 'warn')} | Err: ${getThresh('cpu', 'err')}"`,
+    `"RAM Uyarı / Kritik Eşiği:","Warn: ${getThresh('ram', 'warn')} | Err: ${getThresh('ram', 'err')}"`,
+    `"DİSK Uyarı / Kritik Eşiği:","Warn: ${getThresh('disk', 'warn')} | Err: ${getThresh('disk', 'err')}"`,
+    `"========================================="`,
+    "" 
+  ];
+
+  const headers = [
+    "Tarih / Saat",
+    "Check Type",
+    "Ölçüm Değeri (%)",
+    "Durum Seviyesi"
+  ];
+
+  const rows = filteredEvents.map(item => {
+    const readableDate = new Date(item.timestamp).toLocaleString("tr-TR");
+    return [
+      `"${readableDate}"`,
+      `"${item.check_type.toUpperCase()}"`,
+      `"${item.metric_value.toFixed(2)}"`,
+      `"${item.level}"`
+    ];
+  });
+
+  const csvContent = "\uFEFF" + [
+    ...metadataBlock,
+    headers.join(","),
+    ...rows.map(e => e.join(","))
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  
+  const fileTimeLabel = timeRange >= 60 ? `${timeRange / 60}Saat` : `${timeRange}Dk`;
+  link.setAttribute("href", url);
+  link.setAttribute("download", `PulseGuard_${hostId}_TOPLU_RAPOR_${fileTimeLabel}.csv`);
+  
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const MetricChart = ({ title, type, data, timeRange, hostId, config }) => {
   if (!data || data.length === 0) return (
     <div style={{ background: '#1e293b', borderRadius: '12px', padding: '15px', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#64748b' }}>Bu zaman aralığında veri bulunmuyor.</p></div>
   );
@@ -72,9 +205,34 @@ const MetricChart = ({ title, type, data, timeRange }) => {
 
   return (
     <div style={{ background: '#1e293b', borderRadius: '12px', padding: '15px', flexGrow: 1, minWidth: 0 }}>
-      <h4 style={{ margin: '0 0 15px 0', color: '#f8fafc', fontSize: '0.9rem' }}>
-        {title} Trendi (Son {timeRange >= 60 ? `${timeRange / 60} Saat` : `${timeRange} Dakika`})
-      </h4>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <h4 style={{ margin: 0, color: '#f8fafc', fontSize: '0.9rem' }}>
+          {title} Trendi (Son {timeRange >= 60 ? `${timeRange / 60} Saat` : `${timeRange} Dakika`})
+        </h4>
+        <button 
+          onClick={() => downloadCSV(hostId, type, data, timeRange, config)}
+          style={{ 
+            background: '#334155', 
+            color: '#e2e8f0', 
+            border: '1px solid #475569', 
+            padding: '4px 10px', 
+            borderRadius: '6px', 
+            cursor: 'pointer', 
+            fontSize: '0.75rem', 
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            transition: '0.2s'
+          }}
+          onMouseOver={e => { e.currentTarget.style.background = '#475569'; e.currentTarget.style.color = '#fff'; }}
+          onMouseOut={e => { e.currentTarget.style.background = '#334155'; e.currentTarget.style.color = '#e2e8f0'; }}
+          title={`${title} verilerini CSV olarak indir`}
+        >
+          📥 CSV İndir
+        </button>
+      </div>
+
       <div style={{ height: '180px', width: '100%' }}>
         <ResponsiveContainer>
           <LineChart data={data}>
@@ -251,7 +409,6 @@ function App() {
     setIsSaving(false);
   };
 
-  // Ortak input stili: SOLA DAYALI, temiz ve ferah tasarım
   const inputStyle = {
     background: '#1e293b', 
     color: '#fff', 
@@ -266,14 +423,12 @@ function App() {
     boxSizing: 'border-box'
   };
 
-  // Sadece sayı girilmesine izin veren ve değiştiren yardımcı fonksiyon
   const handleNumberChange = (key, value) => {
     if (value === '' || /^[0-9]+$/.test(value)) {
       setAgentConfig({ ...agentConfig, [key]: value });
     }
   };
 
-  // Tıklandığında imleci kesin olarak metnin en sonuna (sağına) götüren fonksiyon
   const moveCursorToEnd = (e) => {
     const len = e.target.value.length;
     e.target.setSelectionRange(len, len);
@@ -337,6 +492,30 @@ function App() {
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                {/* 🌟 YENİ BUTON: Toplu Tüm Veriyi CSV İndirme */}
+                <button 
+                  onClick={() => downloadAllCSV(selectedHost, hostEvents, timeRange, agentConfig)}
+                  style={{ 
+                    background: '#0f766e', 
+                    color: '#fff', 
+                    border: '1px solid #14b8a6', 
+                    padding: '8px 16px', 
+                    borderRadius: '8px', 
+                    cursor: 'pointer', 
+                    fontSize: '0.9rem', 
+                    fontWeight: 'bold', 
+                    transition: '0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#115e59'}
+                  onMouseOut={e => e.currentTarget.style.background = '#0f766e'}
+                  title="CPU, RAM ve Disk loglarının tamamını tek bir CSV raporu olarak indir"
+                >
+                  📥 Toplu Rapor (CSV)
+                </button>
+
                 <button 
                   onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                   style={{ background: isSettingsOpen ? '#3b82f6' : '#1e293b', color: '#fff', border: '1px solid #3b82f6', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', transition: '0.2s' }}
@@ -472,15 +651,15 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
                 <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
                   <MetricCard title="CPU Kullanımı" unit="%" latest={getLatestMetric('cpu')} />
-                  <MetricChart title="CPU" type="cpu" data={getChartData('cpu')} timeRange={timeRange} />
+                  <MetricChart title="CPU" type="cpu" data={getChartData('cpu')} timeRange={timeRange} hostId={selectedHost} config={agentConfig} />
                 </div>
                 <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
                   <MetricCard title="RAM Kullanımı" unit="%" latest={getLatestMetric('ram')} />
-                  <MetricChart title="RAM" type="ram" data={getChartData('ram')} timeRange={timeRange} />
+                  <MetricChart title="RAM" type="ram" data={getChartData('ram')} timeRange={timeRange} hostId={selectedHost} config={agentConfig} />
                 </div>
                 <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
                   <MetricCard title="Disk Kullanımı" unit="%" latest={getLatestMetric('disk')} />
-                  <MetricChart title="Disk" type="disk" data={getChartData('disk')} timeRange={timeRange} />
+                  <MetricChart title="Disk" type="disk" data={getChartData('disk')} timeRange={timeRange} hostId={selectedHost} config={agentConfig} />
                 </div>
               </div>
             )}

@@ -123,7 +123,7 @@ func handlePostEvents(w http.ResponseWriter, r *http.Request) {
 		// If there is new config setting Collector change levels
 		if hasConfig {
 			val := events[i].Value
-			events[i].Level = "INFO"
+			events[i].Level = "NORMAL"
 
 			switch events[i].CheckType {
 			case "cpu":
