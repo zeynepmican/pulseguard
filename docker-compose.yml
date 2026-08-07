@@ -1,0 +1,29 @@
+services:
+  collector:
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
+    container_name: pulseguard-collector
+    ports:
+      - "8081:8081"
+    volumes:
+      # Veritabanının konteyner kapanıp açıldığında silinmemesi için volume bağlıyoruz
+      - collector-data:/root/data 
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: pulseguard-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Next.js'in backend'e istek atarken kullanacağı URL (Gerekirse)
+      - NEXT_PUBLIC_API_URL=http://localhost:8081 
+    depends_on:
+      - collector
+    restart: unless-stopped
+
+volumes:
+  collector-data:
